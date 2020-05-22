@@ -1,21 +1,26 @@
 <template>
-  <a-upload
-    name="avatar"
-    list-type="picture-card"
-    class="avatar-uploader"
-    :showUploadList="false"
-    :action="uploadUrl"
-    :beforeUpload="beforeUpload"
-  >
-    <img v-if="imageUrl" :src="imageUrl" alt="avatar" />
-    <div v-else>
-      <a-icon :type="loading ? 'loading' : 'plus'" />
-      <div class="ant-upload-text">上传图片</div>
-    </div>
-  </a-upload>
+  <span>{{courseId}} ####{{curImgId}}
+    <a-upload
+      name="avatar"
+      list-type="picture-card"
+      class="avatar-uploader"
+      :showUploadList="false"
+      :beforeUpload="beforeUpload"
+      @change="handleChange"
+    >
+      <img v-if="imageUrl" :src="imageUrl" alt="avatar" />
+      <div v-else>
+        <a-icon :type="loading ? 'loading' : 'plus'" />
+        <div class="ant-upload-text">上传图片</div>
+      </div>
+    </a-upload>
+  </span>
 </template>
 
 <script>
+import httpApi from '../../api/http';
+import axios from 'axios';
+
 function getBase64(img, callback) {
   const reader = new FileReader();
   reader.addEventListener("load", () => callback(reader.result));
@@ -23,28 +28,36 @@ function getBase64(img, callback) {
 }
 
 export default {
+  props:['courseId','type'],
   data() {
     return {
       loading: false,
       imageUrl: "",
-      uploadUrl: "",
-      file:{},
+      uploadUrl: httpApi.uploadfileUrl,
+      file:null,
+      curImgId:-1,
     };
   },
   methods: {
-    // handleChange(info) {
-    //   if (info.file.status === "uploading") {
-    //     this.loading = true;
-    //     return;
-    //   }
-    //   if (info.file.status === "done") {
-    //     // Get this url from response in real world.
-    //     getBase64(info.file.originFileObj, imageUrl => {
-    //       this.imageUrl = imageUrl;
-    //       this.loading = false;
-    //     });
-    //   }
-    // },
+    handleChange(info) {
+      this.file = info.file;
+      console.log("修改文件--------------")
+      console.log(this.file)
+      if (info.file.status === "uploading") {
+        this.loading = true;
+        return;
+      }
+      let formData = new FormData();
+      formData.append("courseId",this.courseId);
+      formData.append("type",this.type);
+      formData.append("file",this.file);
+      formData.append("curImgId",this.curImgId);
+
+      axios.post(httpApi.uploadfileUrl,formData).then((result) => {
+        let datas = result.data;
+        this.curImgId = datas.id;
+      });
+    },
     beforeUpload(file) {
       const isJpgOrPng =
         file.type === "image/jpeg" || file.type === "image/png";
@@ -59,22 +72,26 @@ export default {
       }
       // return isJpgOrPng && isLt2M;
 
-        this.file = file;
+        
       getBase64(file, imageUrl => {
         this.imageUrl = imageUrl;
         this.loading = false;
       });
       return false;
     }
-  }
+  },
+ 
 };
 </script>
 
 <style scoped>
-.avatar-uploader > .ant-upload,
-.avatar-uploader > .ant-upload img {
+.avatar-uploader > .ant-upload{
   width: 128px;
   height: 128px;
+}
+.avatar-uploader > .ant-upload img {
+  width: 86px;
+  height: 86px;
 }
 .ant-upload-select-picture-card i {
   font-size: 32px;

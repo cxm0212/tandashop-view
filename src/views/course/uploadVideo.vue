@@ -4,7 +4,7 @@
               list-type="picture-card"
               class="avatar-uploader"
               :showUploadList="false"
-              action="https://www.mocky.io/v2/5cc8019d300000980a055e76"
+              :beforeUpload="beforeUpload"
               
               @change="handleChange"
             >
@@ -17,7 +17,8 @@
 </template>
 
 <script>
-
+import httpApi from '../../api/http';
+import axios from 'axios';
 
 function getBase64(img, callback) {
   const reader = new FileReader();
@@ -26,38 +27,57 @@ function getBase64(img, callback) {
 }
 
 export default {
- 
+ props:['courseId','type'],
   data() {
     return {   
       loading: false,
       imageUrl: "",
-     
+      file:{},
+      curImgId:-1,
     };
   },
   methods: {
     handleChange(info) {
+      this.file = info.file;
       if (info.file.status === "uploading") {
         this.loading = true;
         return;
       }
-      if (info.file.status === "done") {
-        
-        // Get this url from response in real world.
-        getBase64(info.file.originFileObj, imageUrl => {
+      let formData = new FormData();
+      formData.append("courseId",this.courseId);
+      formData.append("type",this.type);
+      formData.append("file",this.file);
+      formData.append("curImgId",this.curImgId);
+
+      axios.post(httpApi.uploadfileUrl,formData).then((result) => {
+        let datas = result.data;
+        this.curImgId = datas.id;
+      });
+    },
+    beforeUpload(file){
+      const isJpgOrPng =
+        file.type === "video/mp4" || file.type === "video/avi";
+      if (!isJpgOrPng) {
+        this.$message.error("非视频文件!");
+        return false;
+      }
+      
+
+      getBase64(file, imageUrl => {
           this.imageUrl = imageUrl;
           this.loading = false;
         });
-      }
-    },
+      return false;
+    }
+  },
  
-  }
 };
 </script>
 
 <style scoped>
 .avatar-uploader > .ant-upload video {
-  width: 300px;
-  height: 260px;
+  width: 200px;
+  height: 160px;
   
 }
 .avatar-uploader > .ant-upload{

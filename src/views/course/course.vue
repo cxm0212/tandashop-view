@@ -8,12 +8,21 @@
         @tabChange="key => onTabChange(key, 'noTitleKey')"
       >
         <p v-if="noTitleKey === 'courselist'">
-          <a-table :columns="columns" :data-source="data">
-            <a slot="name" slot-scope="text">{{ text }}</a>
+          <a-table :columns="columns" :data-source="data" size="middle" bordered @customRow="updateRow(record)">
+            <span slot="action" slot-scope="record">
+              <a @click="updateRow(record)">修改</a>
+              <a-divider type="vertical" />
+              <a-popconfirm
+                title="确定删除"
+                @confirm="() => onDeleteRow(record)"
+              >
+                <a href="javascript:;">下架</a>
+              </a-popconfirm>
+            </span>
           </a-table>
         </p>
         <p v-else-if="noTitleKey === 'addcourse'">
-          <AddCourse></AddCourse> 
+          <AddCourse ref="addcourse" :courseId="updateCourseId"/>
         </p>
         <p v-else-if="noTitleKey==='coursecategory'"> 
           <CourseCategory />
@@ -25,69 +34,77 @@
 <script>
 import AddCourse from './addcourse';
 import CourseCategory from './courseCategory';
+import httpApi from '../../api/http';
+import axios from 'axios';
+
 
 const columns = [
   {
-    title: "Name",
-    dataIndex: "name",
-    key: "name",
-    scopedSlots: { customRender: "name" }
+    title: "课程编号",
+    dataIndex: "id",
+    key: "id",
+    width:80,
   },
   {
-    title: "Age",
-    dataIndex: "age",
-    key: "age",
-    width: 80
+    title: "课程类别",
+    dataIndex: "categorydesc",
+    key: "categorydesc",
   },
   {
-    title: "Address",
-    dataIndex: "address",
-    key: "address 1",
+    title: "课程标题",
+    dataIndex: "title",
+    key: "title",
     ellipsis: true
   },
   {
-    title: "Long Column Long Column Long Column",
-    dataIndex: "address",
-    key: "address 2",
+    title: "课程描述",
+    dataIndex: "desc",
+    key: "desc",
     ellipsis: true
   },
   {
-    title: "Long Column Long Column",
-    dataIndex: "address",
-    key: "address 3",
-    ellipsis: true
+    title: "原价",
+    dataIndex: "price",
+    key: "price"
   },
   {
-    title: "Long Column",
-    dataIndex: "address",
-    key: "address 4",
-    ellipsis: true
+    title: "是否上架",
+    dataIndex: "isline",
+    key: "isline"
+  },
+  {
+    title: "是否上推荐",
+    dataIndex: "ishot",
+    key: "ishot"
+  },
+  {
+    title: "适用最小年龄",
+    dataIndex: "minAge",
+    key: "minAge"
+  },
+  {
+    title: "适用最大年龄",
+    dataIndex: "maxAge",
+    key: "maxAge"
+  },
+  {
+    title: "团购价",
+    dataIndex: "groupPrice",
+    key: "groupPrice"
+  },
+  {
+    title: "团购人数",
+    dataIndex: "groupNum",
+    key: "groupNum"
+  },
+  {
+    title: "操作",
+    key: "action",
+    scopedSlots: { customRender: "action" },
+    align: "center"
   }
 ];
 
-const data = [
-  {
-    key: "1",
-    name: "John Brown",
-    age: 32,
-    address: "New York No. 1 Lake Park, New York No. 1 Lake Park",
-    tags: ["nice", "developer"]
-  },
-  {
-    key: "2",
-    name: "Jim Green",
-    age: 42,
-    address: "London No. 2 Lake Park, London No. 2 Lake Park",
-    tags: ["loser"]
-  },
-  {
-    key: "3",
-    name: "Joe Black",
-    age: 32,
-    address: "Sidney No. 1 Lake Park, Sidney No. 1 Lake Park",
-    tags: ["cool", "teacher"]
-  }
-];
 
 export default {
   components:{
@@ -96,10 +113,10 @@ export default {
   },
   data() {
     return {
-      data,
+      data:[],
       columns,
-
-      noTitleKey: "addcourse",
+      noTitleKey: "courselist",
+      updateCourseId:null,
       tabListNoTitle: [
         {
           key: "courselist",
@@ -107,19 +124,51 @@ export default {
         },
         {
           key: "addcourse",
-          tab: "添加课程"
+          tab: "添加/修改课程"
         },
         {
           key: "coursecategory",
           tab: "课程类别"
         }
-      ]
+      ],
+
     };
   },
   methods: {
     onTabChange(key, type) {
       this[type] = key;
+      this.updateCourseId = null;
+    },
+    getCourseList(){
+      axios.post(httpApi.getCourseListUrl,{}).then((result) => {
+        let datas = result.data;
+        // console.log(datas)
+        this.data = datas.data;
+
+      }).catch((err) => {
+        console.log(err)
+      });
+
+    },
+    updateRow(record){
+      // console.log(record);
+      this.noTitleKey="addcourse";
+      this.updateCourseId = record.id;
+    },
+    onDeleteRow(record){
+      axios.post(httpApi.deleteCourseUrl,{id:record.id}).then((result) => {
+        this.$message.success(result.data.message);
+        this.getCourseList();
+      }).catch((err) => {
+        console.log(err)
+      });
     }
-  }
+  },
+  created(){
+    this.getCourseList();
+  },
+  
+  
 };
 </script>
+

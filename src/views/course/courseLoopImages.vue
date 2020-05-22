@@ -1,12 +1,12 @@
 <template>
   <div class="clearfix">
     <a-upload
-      :action="uploadUrl"
       list-type="picture-card"
       :file-list="fileList"
       @preview="handlePreview"
       :beforeUpload="beforeUpload"
       @change="handleChange"
+      :remove="removeImg"
     >
       <div v-if="fileList.length < 58">
         <a-icon type="plus" />
@@ -21,18 +21,14 @@
   </div>
 </template>
 <script>
-// function getBase64(file) {
-//   return new Promise((resolve, reject) => {
-//     const reader = new FileReader();
-//     reader.readAsDataURL(file);
-//     reader.onload = () => resolve(reader.result);
-//     reader.onerror = error => reject(error);
-//   });
-// }
+import $ from 'jquery';
+import httpApi from '../../api/http';
+import axios from 'axios';
+
+const fileUidRealId={};
+
 function getBase64(img) {
-  // const reader = new FileReader();
-  // reader.addEventListener("load", () => callback(reader.result));
-  // reader.readAsDataURL(img);
+  
     const reader = new FileReader();
     // reader.addEventListener("load", () => callback(reader.result));
     reader.readAsDataURL(img);
@@ -42,31 +38,18 @@ function getBase64(img) {
   });
 }
 export default {
+  props:['courseId','type'],
   data() {
     return {
       previewVisible: false,
       previewImage: '',
-      uploadUrl:'',
-      fileList: [
-        {
-          uid: '-1',
-          name: 'image.png',
-          status: 'done',
-          url: 'https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png',
-        },
-        
-        {
-          uid: '-5',
-          name: 'image.png',
-          status: 'error',
-        },
-      ],
+      fileList: [],
+      fileUidRealId,
     };
   },
   methods: {
     handleCancel() {
       this.previewVisible = false;
-      
     },
     async handlePreview(file) {
       if (!file.url && !file.preview) {
@@ -75,14 +58,38 @@ export default {
       this.previewImage = file.url || file.preview;
       this.previewVisible = true;
     },
-    handleChange({ fileList }) {
+    handleChange({file,fileList}) {
       this.fileList = fileList;
-      console.log(this.fileList)
+      let formData = new FormData();
+      formData.append("courseId",this.courseId);
+      formData.append("type",this.type);
+      formData.append("curImgId",-1);
+      formData.append("file",file);
+      // console.log(file);
+      
+      axios.post(httpApi.uploadfileUrl,formData).then((result) => {
+        let datas = result.data;
+        fileUidRealId[file.uid]= datas.id;
+      });
+
     },
+    async removeImg(file){
+      let curImgId = fileUidRealId[file.uid];
+      console.log(curImgId+"----移除图片---");
+      console.log(file);
+      let formData = new FormData();
+      formData.append("courseId",this.courseId);
+      formData.append("curImgId",curImgId);
+      await axios.post(httpApi.removeFileUrl,formData);
+      this.fileList.splice($.inArray(file,this.fileList),1)
+      return false;
+    },
+   
     beforeUpload() {
       return false;
     }
   },
+  
 };
 </script>
 <style>

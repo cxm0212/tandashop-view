@@ -19,19 +19,46 @@
 
     <div>
       <a-table :columns="columns" :data-source="data" size="small" bordered>
-        <span slot="action">
-          <a>修改</a>
-          <a-divider type="vertical" />
-          <a>删除</a>
-        </span>
+        <template v-for="col in ['categoryName']" :slot="col" slot-scope="text, record">
+          <div :key="col">
+            <a-input
+              v-if="record.editable"
+              style="margin: -5px 0"
+              :value="text"
+              @change="e => handleChange(e.target.value, record.key, col)"
+            />
+            <template v-else>{{ text }}</template>
+          </div>
+        </template>
+        <template slot="action" slot-scope="text, record">
+          <div class="editable-row-operations">
+            <span v-if="record.editable">
+              <a @click="() => save(record.key)">保存</a>
+              <a-divider type="vertical" />
+                <a @click="cancel(record.key)">取消</a>
+              <!-- <a-popconfirm title="Sure to cancel?" @confirm="() => cancel(record.key)">
+              </a-popconfirm> -->
+            </span>
+            <span v-else>
+              <a :disabled="editingKey !== ''" @click="() => edit(record.key)">修改</a>
+              <a-divider type="vertical" />
+              <a-popconfirm
+                title="确定删除"
+                @confirm="() => onDeleteRow(record)"
+              >
+                <a href="javascript:;">删除</a>
+              </a-popconfirm>
+            </span>
+          </div>
+        </template>
       </a-table>
     </div>
   </div>
 </template>
 
 <script>
-import httpApi from '../../api/http';
-import axios from 'axios';
+import httpApi from "../../api/http";
+import axios from "axios";
 
 const columns = [
   {
@@ -45,8 +72,16 @@ const columns = [
     dataIndex: "categoryName",
     key: "categoryName",
     align: "center",
-    width:'40%',
+    width: "40%",
+    scopedSlots: { customRender: "categoryName" }
   },
+  // {
+  //   title: "状态",
+  //   dataIndex: "state",
+  //   key: "state",
+  //   align: "center",
+  //   scopedSlots: { customRender: "state" }
+  // },
   {
     title: "添加时间",
     dataIndex: "createTime",
@@ -66,23 +101,13 @@ const columns = [
     align: "center"
   }
 ];
-// const data = [
-//   {
-//     key: "1",
-//     id: 1,
-//     categoryName: "自然文化"
-//   },
-//   {
-//     key: "2",
-//     id: 2,
-//     categoryName: "数学"
-//   }
-// ];
+
 export default {
   data() {
     return {
       columns,
-      data:[],
+      data: [],
+      editingKey: ""
     };
   },
   created() {
@@ -93,29 +118,89 @@ export default {
     addCategory() {
       this.form.validateFields((error, params) => {
         if (!error) {
-          console.log(params.categoryName);
-          axios.post(httpApi.addCategoryUrl,params).then((result) => {
+          // console.log(params.categoryName);
+          axios
+            .post(httpApi.addCategoryUrl, params)
+            .then(result => {
               console.log(result.data);
               let datas = result.data;
-              if (datas.status == "2000") {
-                this.$message.error(datas.msg);
-              } else if (datas.status == "2001") {
-                this.$message.success(datas.msg);
+              if (datas.code == "2000") {
+                this.$message.error(datas.message);
+              } else if (datas.code == "2001") {
+                this.$message.success(datas.message);
               }
-          }).catch((err) => {
-              console.log(err)
-          });      
+            })
+            .catch(err => {
+              console.log(err);
+            });
         }
+        return;
       });
     },
-    getCategorys(categoryId){
-        axios.post(httpApi.getCategoryListUrl,{id:categoryId}).then((result) => {
-            console.log(result.data);
-            this.data = result.data;
-
-        }).catch((err) => {
-            console.log(err)
+    getCategorys(categoryId) {
+      axios
+        .post(httpApi.getCategoryListUrl, { id: categoryId })
+        .then(result => {
+          console.log(result.data);
+          this.data = result.data.data;
+        })
+        .catch(err => {
+          console.log(err);
         });
+    },
+    onDeleteRow(record){
+      axios.post(httpApi.deleteCategoryUrl,{id:record.id}).then((result) => {
+        this.$message.success(result.data.message);
+        this.getCategorys();
+      }).catch((err) => {
+        console.log(err)
+      });
+    },
+    // 表格操作
+    handleChange(value, key, column) {
+      const newData = [...this.data];
+      const target = newData.filter(item => key === item.key)[0];
+      if (target) {
+        target[column] = value;
+        this.data = newData;
+      }
+    },
+    edit(key) {
+      const newData = [...this.data];
+      const target = newData.filter(item => key === item.key)[0];
+      this.editingKey = key;
+      if (target) {
+        target.editable = true;
+        this.data = newData;
+      }
+    },
+    save(key) {
+      const newData = [...this.data];
+      const target = newData.filter(item => key === item.key)[0];
+      console.log(target);
+      // if (target) {
+      //   delete target.editable;
+      //   this.data = newData;
+      // }
+      this.editingKey = "";
+      axios.post(httpApi.updateCategoryUrl,target).then((result) => {
+          let datas = result.data;
+          console.log(datas)
+          if(datas.code==2002){
+            delete target.editable;
+            this.data = newData;
+            this.$message.success(datas.message);
+          }
+      });
+    },
+    cancel(key) {
+      const newData = [...this.data];
+      const target = newData.filter(item => key === item.key)[0];
+      this.editingKey = "";
+      if (target) {
+        delete target.editable;
+        this.data = newData;
+      }
     }
   }
 };
